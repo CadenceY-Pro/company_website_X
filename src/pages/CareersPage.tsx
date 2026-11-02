@@ -143,11 +143,11 @@ export function CareersPage() {
           <h2>Do not wait for the perfect listing</h2>
           <p>
             We keep a confidential pipeline for engineers, designers, PMs, and operators.
-            Email careers@cadence.xyz or open a role above.
+            Email careers@cadencey.io or open a role above.
           </p>
           <div className="subpage-actions">
-            <a className="btn btn-red" href="mailto:careers@cadence.xyz">
-              careers@cadence.xyz
+            <a className="btn btn-red" href="mailto:careers@cadencey.io">
+              careers@cadencey.io
             </a>
             <Link className="btn btn-ghost" to="/team">
               Meet the team

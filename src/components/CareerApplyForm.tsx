@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Job } from '../data/jobs'
 
-const CAREERS_EMAIL = 'careers@cadence.xyz'
+const CAREERS_EMAIL = 'careers@cadencey.io'
 
 type Props = {
   job: Job
