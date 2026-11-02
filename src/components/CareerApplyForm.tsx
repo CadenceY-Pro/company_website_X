@@ -3,9 +3,104 @@ import type { FormEvent } from 'react'
 import type { Job } from '../data/jobs'
 
 const CAREERS_EMAIL = 'careers@cadencey.io'
+const MAX_RESUME_BYTES = 3.5 * 1024 * 1024
 
 type Props = {
   job: Job
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer()
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]!)
+  }
+  return btoa(binary)
+}
+
+/** Prefer Resend API when configured on Vercel. */
+async function sendViaResendApi(payload: Record<string, string>): Promise<boolean> {
+  try {
+    const response = await fetch('/api/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    const data = (await response.json().catch(() => null)) as
+      | { ok?: boolean; error?: string }
+      | null
+
+    if (response.ok && data?.ok) return true
+
+    // Not configured yet — caller will use FormSubmit
+    if (
+      response.status === 404 ||
+      response.status === 500 ||
+      data?.error?.includes('RESEND_API_KEY')
+    ) {
+      return false
+    }
+
+    throw new Error(data?.error || 'Could not send application via API.')
+  } catch (error) {
+    if (error instanceof TypeError) return false
+    throw error
+  }
+}
+
+/** Direct delivery to careers@cadencey.io (FormSubmit). */
+async function sendViaFormSubmit(fields: {
+  role: string
+  fullName: string
+  email: string
+  location: string
+  linkedin: string
+  portfolio: string
+  why: string
+  resumeFile: File | null
+}) {
+  const formData = new FormData()
+  formData.append('_subject', `Application: ${fields.role} — ${fields.fullName}`)
+  formData.append('_template', 'table')
+  formData.append('_captcha', 'false')
+  formData.append('_replyto', fields.email)
+  formData.append('email', fields.email)
+  formData.append('Role', fields.role)
+  formData.append('Full name', fields.fullName)
+  formData.append('Applicant email', fields.email)
+  formData.append('Location', fields.location)
+  formData.append('LinkedIn / resume URL', fields.linkedin || '(not provided)')
+  formData.append('Portfolio / GitHub', fields.portfolio || '(not provided)')
+  formData.append('Why CadenceY', fields.why)
+
+  if (fields.resumeFile) {
+    formData.append('attachment', fields.resumeFile, fields.resumeFile.name)
+  }
+
+  const response = await fetch(`https://formsubmit.co/ajax/${CAREERS_EMAIL}`, {
+    method: 'POST',
+    body: formData,
+    headers: { Accept: 'application/json' },
+  })
+
+  const data = (await response.json().catch(() => null)) as
+    | { success?: string | boolean; message?: string }
+    | null
+
+  const ok =
+    response.ok &&
+    (data?.success === true ||
+      data?.success === 'true' ||
+      Boolean(data?.message && /sent|success|deliver/i.test(data.message)))
+
+  if (!ok) {
+    throw new Error(
+      data?.message ||
+        `Could not deliver to ${CAREERS_EMAIL}. Please try again or email us directly.`,
+    )
+  }
 }
 
 export function CareerApplyForm({ job }: Props) {
@@ -15,43 +110,80 @@ export function CareerApplyForm({ job }: Props) {
   const [linkedin, setLinkedin] = useState('')
   const [portfolio, setPortfolio] = useState('')
   const [why, setWhy] = useState('')
-  const [resumeName, setResumeName] = useState('')
+  const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setError('')
+    setSubmitting(true)
 
-    const lines = [
-      `Role: ${job.title}`,
-      `Name: ${fullName}`,
-      `Email: ${email}`,
-      `Location: ${location}`,
-      `LinkedIn / resume URL: ${linkedin}`,
-      `Portfolio / GitHub: ${portfolio}`,
-      `Resume file: ${resumeName || '(attach in this email)'}`,
-      '',
-      'Why CadenceY:',
-      why,
-    ]
+    try {
+      if (resumeFile && resumeFile.size > MAX_RESUME_BYTES) {
+        throw new Error('Resume must be under 3.5 MB.')
+      }
 
-    const mailto = `mailto:${CAREERS_EMAIL}?subject=${encodeURIComponent(
-      `Application: ${job.title} — ${fullName}`,
-    )}&body=${encodeURIComponent(lines.join('\n'))}`
+      const trimmed = {
+        role: job.title,
+        fullName: fullName.trim(),
+        email: email.trim(),
+        location: location.trim(),
+        linkedin: linkedin.trim(),
+        portfolio: portfolio.trim(),
+        why: why.trim(),
+      }
 
-    window.location.href = mailto
-    setSubmitted(true)
+      const apiPayload: Record<string, string> = { ...trimmed }
+
+      if (resumeFile) {
+        apiPayload.resumeName = resumeFile.name
+        apiPayload.resumeType = resumeFile.type || 'application/octet-stream'
+        apiPayload.resumeBase64 = await fileToBase64(resumeFile)
+      }
+
+      const sentViaApi = await sendViaResendApi(apiPayload)
+
+      if (!sentViaApi) {
+        await sendViaFormSubmit({
+          ...trimmed,
+          resumeFile,
+        })
+      }
+
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send application.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (submitted) {
     return (
       <aside className="career-apply">
-        <h2>Application ready</h2>
+        <h2>Application sent</h2>
         <p>
-          Your mail client should open with the application drafted to {CAREERS_EMAIL}.
-          Attach your resume if you selected a file, then send.
+          Thanks — your application for {job.title} was sent to{' '}
+          <strong>{CAREERS_EMAIL}</strong>. Check that inbox for the message.
         </p>
-        <button className="btn btn-ghost career-apply-reset" type="button" onClick={() => setSubmitted(false)}>
-          Edit application
+        <button
+          className="btn btn-ghost career-apply-reset"
+          type="button"
+          onClick={() => {
+            setSubmitted(false)
+            setFullName('')
+            setEmail('')
+            setLocation('')
+            setLinkedin('')
+            setPortfolio('')
+            setWhy('')
+            setResumeFile(null)
+            setError('')
+          }}
+        >
+          Submit another
         </button>
       </aside>
     )
@@ -62,7 +194,7 @@ export function CareerApplyForm({ job }: Props) {
       <header className="career-apply-head">
         <h2>Apply for {job.title}</h2>
         <p>
-          Send materials here or email{' '}
+          Submit below and we will receive everything at{' '}
           <a href={`mailto:${CAREERS_EMAIL}`}>{CAREERS_EMAIL}</a>.
         </p>
       </header>
@@ -144,7 +276,7 @@ export function CareerApplyForm({ job }: Props) {
             type="file"
             name="resume"
             accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            onChange={(e) => setResumeName(e.target.files?.[0]?.name ?? '')}
+            onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
           />
         </label>
 
@@ -160,8 +292,10 @@ export function CareerApplyForm({ job }: Props) {
           />
         </label>
 
-        <button className="career-apply-submit" type="submit">
-          Submit application
+        {error ? <p className="career-apply-error">{error}</p> : null}
+
+        <button className="career-apply-submit" type="submit" disabled={submitting}>
+          {submitting ? 'Sending…' : 'Submit application'}
         </button>
       </form>
     </aside>
