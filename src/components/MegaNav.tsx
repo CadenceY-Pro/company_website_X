@@ -194,7 +194,7 @@ export function MegaNav() {
                 <IconGitHub />
               </Link>
               <a
-                href="https://www.linkedin.com/company/cadencey"
+                href="https://www.linkedin.com/company/cadencey-tech/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LinkedIn"
