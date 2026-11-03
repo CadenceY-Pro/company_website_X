@@ -116,7 +116,14 @@ export function RoadmapPage() {
       <section className="wrap rm-banner" aria-label="Roadmap hero">
         <div className="rm-banner-inner">
           <div className="rm-banner-logo">
-            <span className="rm-banner-mark" aria-hidden="true" />
+            <img
+              className="rm-banner-mark"
+              src="/brand/cadencey-mark.svg"
+              alt=""
+              width={22}
+              height={22}
+              decoding="async"
+            />
             <strong>CadenceY</strong>
           </div>
           <h1>Roadmap</h1>

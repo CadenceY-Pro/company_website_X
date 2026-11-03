@@ -119,33 +119,14 @@ svg {
 .logo-mark {
   width: 28px;
   height: 28px;
-  position: relative;
   flex-shrink: 0;
+  display: block;
+  object-fit: contain;
 }
 
-.logo-mark .sq {
-  position: absolute;
-  inset: 4px 0 0 4px;
-  width: 20px;
-  height: 20px;
-  background: var(--red);
-}
-
-.logo-mark .inner {
-  position: absolute;
-  inset: 9px 0 0 9px;
-  width: 10px;
-  height: 10px;
-  background: var(--bg);
-}
-
-.logo-mark .dot {
-  position: absolute;
-  left: 0;
-  top: 12px;
-  width: 4px;
-  height: 4px;
-  background: var(--red);
+.mega-feature-mark {
+  width: 40px;
+  height: 40px;
 }
 
 .nav-pill {
@@ -3528,22 +3509,10 @@ svg {
 }
 
 .rm-banner-mark {
-  width: 18px;
-  height: 18px;
-  background: var(--red);
-  box-shadow: 5px -5px 0 -7px var(--red);
-  position: relative;
-}
-
-.rm-banner-mark::after {
-  content: "";
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--red);
-  top: -3px;
-  right: -4px;
+  width: 22px;
+  height: 22px;
+  display: block;
+  object-fit: contain;
 }
 
 .rm-banner-logo strong {

@@ -8,7 +8,7 @@ import {
   IconLitepaper,
   IconRoadmap,
 } from './Icons'
-import { Logo } from './Logo'
+import { BrandMark, Logo } from './Logo'
 
 type MenuKey = 'product' | 'resources' | null
 
@@ -137,11 +137,7 @@ export function MegaNav() {
                 {open === 'resources' && (
                   <div className="mega-split">
                     <div className="mega-feature">
-                      <div className="logo-mark mega-feature-mark" aria-hidden="true">
-                        <span className="sq" />
-                        <span className="inner" />
-                        <span className="dot" />
-                      </div>
+                      <BrandMark className="logo-mark mega-feature-mark" />
                       <h3>CDN powers infinisoc. infinisoc powers products.</h3>
                       <p>
                         Open source, research, and the path ahead — resources for builders
