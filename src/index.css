@@ -474,9 +474,15 @@ svg {
 }
 
 .mega-link-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
   color: var(--muted);
-  font-size: 14px;
-  text-align: center;
+}
+
+.mega-link-icon svg {
+  display: block;
 }
 
 .mega-links .ext-arrow {

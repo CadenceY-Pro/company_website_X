@@ -215,9 +215,9 @@ export function CareerApplyForm({ job }: Props) {
 
       <a
         className="career-apply-meeting"
-        href={`mailto:${CAREERS_EMAIL}?subject=${encodeURIComponent(
-          `Book 30-minute meeting — ${job.title}`,
-        )}`}
+        href="https://calendly.com/careers-cadencey/30min"
+        target="_blank"
+        rel="noopener noreferrer"
       >
         Book a 30 min meeting
       </a>

@@ -112,3 +112,51 @@ export function IconTelegram() {
     </svg>
   )
 }
+
+export function IconGitHub() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.477 2 2 6.486 2 12.021c0 4.428 2.865 8.184 6.839 9.504.5.093.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.622.069-.609.069-.609 1.004.071 1.532 1.034 1.532 1.034.892 1.533 2.341 1.09 2.91.833.091-.647.35-1.09.636-1.341-2.22-.253-4.555-1.113-4.555-4.952 0-1.093.39-1.988 1.029-2.688-.103-.254-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.56 9.56 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.026 2.747-1.026.546 1.378.203 2.396.1 2.65.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.944.359.31.678.922.678 1.858 0 1.341-.012 2.421-.012 2.751 0 .268.18.58.688.481A10.02 10.02 0 0 0 22 12.021C22 6.486 17.523 2 12 2Z" />
+    </svg>
+  )
+}
+
+export function IconLitepaper() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M7 3.75h7.5L19 8.25V20.25a.75.75 0 0 1-.75.75H7.75A.75.75 0 0 1 7 20.25V3.75Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M14.5 3.75V8.25H19" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M10 12h6M10 15.5h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function IconRoadmap() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4.5 7.5h6.2l2.1 2.8H19.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.5 16.5h5.4l2.2-2.8H19.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="4.5" cy="7.5" r="1.6" fill="currentColor" />
+      <circle cx="19.5" cy="7.5" r="1.6" fill="currentColor" />
+      <circle cx="4.5" cy="16.5" r="1.6" fill="currentColor" />
+      <circle cx="19.5" cy="16.5" r="1.6" fill="currentColor" />
+    </svg>
+  )
+}

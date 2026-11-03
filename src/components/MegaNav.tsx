@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Caret, IconDiscord, IconTelegram, IconX } from './Icons'
+import {
+  Caret,
+  IconDiscord,
+  IconGitHub,
+  IconLitepaper,
+  IconRoadmap,
+  IconTelegram,
+  IconX,
+} from './Icons'
 import { Logo } from './Logo'
 
 type MenuKey = 'product' | 'resources' | null
@@ -145,7 +153,7 @@ export function MegaNav() {
                       <div className="mega-links-label">Resources</div>
                       <Link to="/github" onClick={() => setOpen(null)}>
                         <span className="mega-link-icon" aria-hidden="true">
-                          {'</>'}
+                          <IconGitHub />
                         </span>
                         <span>GitHub</span>
                         <ExtArrow />
@@ -157,14 +165,14 @@ export function MegaNav() {
                         onClick={() => setOpen(null)}
                       >
                         <span className="mega-link-icon" aria-hidden="true">
-                          ▤
+                          <IconLitepaper />
                         </span>
                         <span>Litepaper</span>
                         <ExtArrow />
                       </a>
                       <Link to="/roadmap" onClick={() => setOpen(null)}>
                         <span className="mega-link-icon" aria-hidden="true">
-                          →
+                          <IconRoadmap />
                         </span>
                         <span>Roadmap</span>
                         <ExtArrow />
