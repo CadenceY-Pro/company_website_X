@@ -118,10 +118,10 @@ export function RoadmapPage() {
           <div className="rm-banner-logo">
             <img
               className="rm-banner-mark"
-              src="/brand/cadencey-mark.svg"
+              src="/brand/cadencey-mark.png"
               alt=""
-              width={22}
-              height={22}
+              width={36}
+              height={36}
               decoding="async"
             />
             <strong>CadenceY</strong>

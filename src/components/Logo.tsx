@@ -4,10 +4,10 @@ export function BrandMark({ className = 'logo-mark' }: { className?: string }) {
   return (
     <img
       className={className}
-      src="/brand/cadencey-mark.svg"
+      src="/brand/cadencey-mark.png"
       alt=""
-      width={28}
-      height={28}
+      width={44}
+      height={44}
       decoding="async"
     />
   )
