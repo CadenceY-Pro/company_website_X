@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import type { Job } from '../data/jobs'
 
 const CAREERS_EMAIL = 'careers@cadencey.io'
-const MAX_RESUME_BYTES = 3.5 * 1024 * 1024
+const MAX_RESUME_BYTES = 8 * 1024 * 1024
 
 type Props = {
   job: Job
@@ -13,13 +13,14 @@ async function fileToBase64(file: File): Promise<string> {
   const buffer = await file.arrayBuffer()
   const bytes = new Uint8Array(buffer)
   let binary = ''
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]!)
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
   }
   return btoa(binary)
 }
 
-/** Prefer Resend API when configured on Vercel. */
+/** Prefer Resend API when configured on Vercel (supports real attachments). */
 async function sendViaResendApi(payload: Record<string, string>): Promise<boolean> {
   try {
     const response = await fetch('/api/apply', {
@@ -34,7 +35,6 @@ async function sendViaResendApi(payload: Record<string, string>): Promise<boolea
 
     if (response.ok && data?.ok) return true
 
-    // Not configured yet — caller will use FormSubmit
     if (
       response.status === 404 ||
       response.status === 500 ||
@@ -50,7 +50,10 @@ async function sendViaResendApi(payload: Record<string, string>): Promise<boolea
   }
 }
 
-/** Direct delivery to careers@cadencey.io (FormSubmit). */
+/**
+ * FormSubmit file uploads only work on the non-AJAX endpoint with multipart FormData.
+ * The /ajax/ endpoint delivers field text but drops attachments.
+ */
 async function sendViaFormSubmit(fields: {
   role: string
   fullName: string
@@ -76,10 +79,11 @@ async function sendViaFormSubmit(fields: {
   formData.append('Why CadenceY', fields.why)
 
   if (fields.resumeFile) {
-    formData.append('attachment', fields.resumeFile, fields.resumeFile.name)
+    // FormSubmit attaches any named file input; use a clear filename.
+    formData.append('Resume', fields.resumeFile, fields.resumeFile.name)
   }
 
-  const response = await fetch(`https://formsubmit.co/ajax/${CAREERS_EMAIL}`, {
+  const response = await fetch(`https://formsubmit.co/${CAREERS_EMAIL}`, {
     method: 'POST',
     body: formData,
     headers: { Accept: 'application/json' },
@@ -91,15 +95,21 @@ async function sendViaFormSubmit(fields: {
 
   const ok =
     response.ok &&
-    (data?.success === true ||
+    (data == null ||
+      data?.success === true ||
       data?.success === 'true' ||
       Boolean(data?.message && /sent|success|deliver/i.test(data.message)))
 
-  if (!ok) {
+  if (!response.ok || (data && data.success === false)) {
     throw new Error(
       data?.message ||
         `Could not deliver to ${CAREERS_EMAIL}. Please try again or email us directly.`,
     )
+  }
+
+  // Some FormSubmit responses are empty HTML/redirects that still succeed (200).
+  if (!ok && response.status >= 400) {
+    throw new Error(`Could not deliver to ${CAREERS_EMAIL}. Please try again.`)
   }
 }
 
@@ -121,8 +131,12 @@ export function CareerApplyForm({ job }: Props) {
     setSubmitting(true)
 
     try {
-      if (resumeFile && resumeFile.size > MAX_RESUME_BYTES) {
-        throw new Error('Resume must be under 3.5 MB.')
+      if (!resumeFile) {
+        throw new Error('Please attach your resume (PDF or DOC).')
+      }
+
+      if (resumeFile.size > MAX_RESUME_BYTES) {
+        throw new Error('Resume must be under 8 MB.')
       }
 
       const trimmed = {
@@ -135,12 +149,11 @@ export function CareerApplyForm({ job }: Props) {
         why: why.trim(),
       }
 
-      const apiPayload: Record<string, string> = { ...trimmed }
-
-      if (resumeFile) {
-        apiPayload.resumeName = resumeFile.name
-        apiPayload.resumeType = resumeFile.type || 'application/octet-stream'
-        apiPayload.resumeBase64 = await fileToBase64(resumeFile)
+      const apiPayload: Record<string, string> = {
+        ...trimmed,
+        resumeName: resumeFile.name,
+        resumeType: resumeFile.type || 'application/octet-stream',
+        resumeBase64: await fileToBase64(resumeFile),
       }
 
       const sentViaApi = await sendViaResendApi(apiPayload)
@@ -165,8 +178,9 @@ export function CareerApplyForm({ job }: Props) {
       <aside className="career-apply">
         <h2>Application sent</h2>
         <p>
-          Thanks — your application for {job.title} was sent to{' '}
-          <strong>{CAREERS_EMAIL}</strong>. Check that inbox for the message.
+          Thanks — your application for {job.title}
+          {resumeFile ? ` (with ${resumeFile.name})` : ''} was sent to{' '}
+          <strong>{CAREERS_EMAIL}</strong>.
         </p>
         <button
           className="btn btn-ghost career-apply-reset"
@@ -208,7 +222,11 @@ export function CareerApplyForm({ job }: Props) {
         Book a 30 min meeting
       </a>
 
-      <form className="career-apply-form" onSubmit={handleSubmit}>
+      <form
+        className="career-apply-form"
+        onSubmit={handleSubmit}
+        encType="multipart/form-data"
+      >
         <div className="career-apply-row">
           <label>
             <span>Full name</span>
@@ -273,8 +291,9 @@ export function CareerApplyForm({ job }: Props) {
         <label className="career-apply-file">
           <span>Resume (PDF or DOC)</span>
           <input
+            required
             type="file"
-            name="resume"
+            name="Resume"
             accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
           />

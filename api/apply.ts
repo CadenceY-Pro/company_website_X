@@ -4,7 +4,7 @@ import { Resend } from 'resend'
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '4mb',
+      sizeLimit: '10mb',
     },
   },
 }
@@ -110,16 +110,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       process.env.CAREERS_FROM_EMAIL || 'CadenceY Careers <careers@cadencey.io>'
     const to = process.env.CAREERS_TO_EMAIL || 'careers@cadencey.io'
 
+    const cleanedBase64 = resumeBase64.replace(/^data:[^;]+;base64,/, '')
     const attachments =
-      resumeBase64 && resumeName
+      cleanedBase64 && resumeName
         ? [
             {
               filename: resumeName,
-              content: Buffer.from(resumeBase64, 'base64'),
-              contentType: resumeType,
+              // Resend accepts raw base64 string content for attachments
+              content: cleanedBase64,
+              contentType: resumeType || 'application/octet-stream',
             },
           ]
         : []
+
+    if (!attachments.length) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Resume file is required and must be attached.',
+      })
+    }
 
     const resend = new Resend(apiKey)
     const result = await resend.emails.send({
@@ -136,7 +145,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ ok: false, error: result.error.message })
     }
 
-    return res.status(200).json({ ok: true, id: result.data?.id })
+    return res.status(200).json({
+      ok: true,
+      id: result.data?.id,
+      attached: resumeName,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send application'
     return res.status(500).json({ ok: false, error: message })
