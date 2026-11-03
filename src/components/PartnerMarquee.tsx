@@ -57,8 +57,8 @@ export function PartnerMarquee() {
         <p className="eyebrow">Ecosystem</p>
         <h2>Related networks &amp; partners</h2>
         <p>
-          Companies with Agoric orchestration partnerships or close Interchain /
-          Agoric ecosystem ties.
+          Companies with CadenceY orchestration partnerships or close Interchain /
+          CadenceY ecosystem ties.
         </p>
       </div>
 

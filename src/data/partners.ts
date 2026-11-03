@@ -9,8 +9,8 @@ export type Partner = {
 }
 
 /**
- * Blockchain companies with announced Agoric partnerships or close
- * Agoric / Interchain ecosystem relationships (orchestration, apps, IBC).
+ * Blockchain companies with CadenceY orchestration partnerships or close
+ * CadenceY / Interchain ecosystem relationships (orchestration, apps, IBC).
  */
 export const partners: Partner[] = [
   {
@@ -22,14 +22,14 @@ export const partners: Partner[] = [
   },
   {
     name: 'Inter Protocol',
-    relation: 'Stablecoin protocol built on Agoric',
+    relation: 'Stablecoin protocol built on CadenceY',
     initials: 'IP',
     logo: 'https://icons.llamao.fi/icons/protocols/inter-protocol?w=48',
     href: 'https://inter.trade',
   },
   {
     name: 'Noble',
-    relation: 'Fast USDC partner with Agoric',
+    relation: 'Fast USDC partner with CadenceY',
     initials: 'NO',
     logo: 'https://icons.llamao.fi/icons/chains/rsz_noble.jpg?w=48',
     href: 'https://nobleassets.xyz',
@@ -57,7 +57,7 @@ export const partners: Partner[] = [
   },
   {
     name: 'Calypso',
-    relation: 'Interchain trading app on Agoric',
+    relation: 'Interchain trading app on CadenceY',
     initials: 'CA',
     logo: 'https://icons.llamao.fi/icons/protocols/calypso?w=48',
     href: 'https://calypso.finance',
@@ -91,7 +91,7 @@ export const partners: Partner[] = [
   },
   {
     name: 'Axelar',
-    relation: 'Cross-chain messaging with Agoric flows',
+    relation: 'Cross-chain messaging with CadenceY flows',
     initials: 'AX',
     logo: 'https://icons.llamao.fi/icons/protocols/axelar?w=48',
     href: 'https://axelar.network',
@@ -112,7 +112,7 @@ export const partners: Partner[] = [
   },
   {
     name: 'Crabble',
-    relation: 'NFT lending app launched with Agoric',
+    relation: 'NFT lending app launched with CadenceY',
     initials: 'CR',
     href: 'https://crabble.io',
   },
