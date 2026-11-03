@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
   Caret,
-  IconDiscord,
+  IconCalendar,
   IconGitHub,
+  IconLinkedIn,
   IconLitepaper,
   IconRoadmap,
-  IconTelegram,
-  IconX,
 } from './Icons'
 import { Logo } from './Logo'
 
@@ -186,16 +185,26 @@ export function MegaNav() {
           </nav>
 
           <div className="nav-right">
-            <div className="social" aria-label="Social">
-              <Link to="/community" aria-label="Discord">
-                <IconDiscord />
+            <div className="social" aria-label="Quick links">
+              <a
+                href="https://calendly.com/careers-cadencey/30min"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Book a meeting"
+              >
+                <IconCalendar />
+              </a>
+              <Link to="/github" aria-label="GitHub">
+                <IconGitHub />
               </Link>
-              <Link to="/community" aria-label="Telegram">
-                <IconTelegram />
-              </Link>
-              <Link to="/community" aria-label="Twitter">
-                <IconX />
-              </Link>
+              <a
+                href="https://www.linkedin.com/company/cadencey"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LinkedIn"
+              >
+                <IconLinkedIn />
+              </a>
             </div>
             <button
               className="menu-btn"
