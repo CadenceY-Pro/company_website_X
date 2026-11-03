@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-const ORCH_VIDEO =
-  'https://videos.ctfassets.net/wa8sbre9d8c7/1MvRgKqKesbJFdERlsnJR0/ca7564e2539c14e6381dd4f9a21d632c/rotatingSquares.mp4'
+const ORCH_VIDEO = '/videos/rotatingSquares.mp4'
 
 /**
  * Exact Agoric rotatingSquares treatment:

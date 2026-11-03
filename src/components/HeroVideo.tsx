@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-const HERO_VIDEO =
-  'https://videos.ctfassets.net/wa8sbre9d8c7/2vvs5WjtZVrCCg9rLxjSM1/f142204051d5bb85c59bc8c424f0acaf/hero_anim_final.mp4'
+const HERO_VIDEO = '/videos/hero_anim_final.mp4'
 
 /**
  * Exact Agoric hero_anim_final treatment:

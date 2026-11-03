@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-const STACK_VIDEO =
-  'https://videos.ctfassets.net/wa8sbre9d8c7/40ejgFjf3EcdJZZtWcDAOW/22228a0ffd62d515ba81908d6adb1708/ymax-stack-anim.mp4'
+const STACK_VIDEO = '/videos/ymax-stack-anim.mp4'
 
 /**
  * Exact Agoric ymax-stack-anim treatment:

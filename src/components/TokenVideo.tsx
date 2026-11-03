@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-const TOKEN_VIDEO =
-  'https://videos.ctfassets.net/wa8sbre9d8c7/1TMaWLOAIKDvvLstJnjDVZ/d56c1aa950f046b32aa74725c09d97d6/sponge.mp4'
+const TOKEN_VIDEO = '/videos/sponge.mp4'
 
 /**
  * Exact Agoric sponge.mp4 treatment for token/economy section:
