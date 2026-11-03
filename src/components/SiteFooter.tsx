@@ -17,7 +17,13 @@ export function SiteFooter() {
             </div>
             <div>
               <h4>Resources</h4>
-              <Link to="/github">GitHub</Link>
+              <a
+                href="https://github.com/Cadensey-Tech/cadencey-sdk"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub
+              </a>
               <a href="/BLD_Tokenomics_Lite-Paper-2026.pdf" target="_blank" rel="noopener noreferrer">
                 Litepaper
               </a>

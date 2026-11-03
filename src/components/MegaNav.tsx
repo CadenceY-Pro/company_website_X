@@ -146,13 +146,18 @@ export function MegaNav() {
                     </div>
                     <div className="mega-links">
                       <div className="mega-links-label">Resources</div>
-                      <Link to="/github" onClick={() => setOpen(null)}>
+                      <a
+                        href="https://github.com/Cadensey-Tech/cadencey-sdk"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setOpen(null)}
+                      >
                         <span className="mega-link-icon" aria-hidden="true">
                           <IconGitHub />
                         </span>
                         <span>GitHub</span>
                         <ExtArrow />
-                      </Link>
+                      </a>
                       <a
                         href="/BLD_Tokenomics_Lite-Paper-2026.pdf"
                         target="_blank"
@@ -190,9 +195,14 @@ export function MegaNav() {
               >
                 <IconCalendar />
               </a>
-              <Link to="/github" aria-label="GitHub">
+              <a
+                href="https://github.com/Cadensey-Tech/cadencey-sdk"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="GitHub"
+              >
                 <IconGitHub />
-              </Link>
+              </a>
               <a
                 href="https://www.linkedin.com/company/cadencey-tech/"
                 target="_blank"
@@ -229,9 +239,14 @@ export function MegaNav() {
         </div>
         <div className="mobile-group">
           <strong>Resources</strong>
-          <Link to="/github" onClick={() => setMobileOpen(false)}>
+          <a
+            href="https://github.com/Cadensey-Tech/cadencey-sdk"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMobileOpen(false)}
+          >
             GitHub
-          </Link>
+          </a>
           <a
             href="/BLD_Tokenomics_Lite-Paper-2026.pdf"
             target="_blank"

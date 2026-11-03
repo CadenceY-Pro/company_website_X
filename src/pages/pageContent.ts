@@ -28,7 +28,7 @@ export const pages: PageContent[] = [
       'Guides, API references, and contract patterns for multi-chain workflows — from first intent to settled execution.',
       'Start with infinisoc concepts, then ship production strategies with capability-secure contracts and funded purses.',
     ],
-    cta: { label: 'Explore GitHub', to: '/github' },
+    cta: { label: 'Explore GitHub', to: 'https://github.com/Cadensey-Tech/cadencey-sdk' },
   },
   {
     path: '/github',
@@ -39,7 +39,7 @@ export const pages: PageContent[] = [
       'Repositories for the CadenceY stack, examples, and developer SDKs that make multi-chain automation feel local.',
       'Fork starters, review audits, and contribute improvements to the infinisoc layer powering Pulse.',
     ],
-    cta: { label: 'Read the Docs', to: '/documentation' },
+    cta: { label: 'Open GitHub', to: 'https://github.com/Cadensey-Tech/cadencey-sdk' },
   },
   {
     path: '/community',
