@@ -22,6 +22,14 @@ type ApplyBody = {
   resumeType?: string
 }
 
+const CAREERS_TO = process.env.CAREERS_TO_EMAIL || 'careers@cadencey.io'
+
+function setCors(res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+}
+
 function readBody(req: VercelRequest): Promise<ApplyBody> {
   if (req.body && typeof req.body === 'object') {
     return Promise.resolve(req.body as ApplyBody)
@@ -42,24 +50,137 @@ function readBody(req: VercelRequest): Promise<ApplyBody> {
   })
 }
 
+function buildText(fields: Required<Pick<ApplyBody, 'role' | 'fullName' | 'email' | 'location' | 'why'>> & {
+  linkedin: string
+  portfolio: string
+  resumeName: string
+}) {
+  return [
+    `Role: ${fields.role}`,
+    `Name: ${fields.fullName}`,
+    `Email: ${fields.email}`,
+    `Location: ${fields.location}`,
+    `LinkedIn / resume URL: ${fields.linkedin || '(not provided)'}`,
+    `Portfolio / GitHub: ${fields.portfolio || '(not provided)'}`,
+    `Resume file: ${fields.resumeName || '(not attached)'}`,
+    '',
+    'Why CadenceY:',
+    fields.why,
+  ].join('\n')
+}
+
+async function sendViaResend(fields: {
+  role: string
+  fullName: string
+  email: string
+  location: string
+  linkedin: string
+  portfolio: string
+  why: string
+  resumeName: string
+  resumeBase64: string
+  resumeType: string
+}) {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return null
+
+  const text = buildText(fields)
+  const html = `
+    <h2>New application — ${escapeHtml(fields.role)}</h2>
+    <pre style="font-family:sans-serif;white-space:pre-wrap">${escapeHtml(text)}</pre>
+  `
+
+  const cleanedBase64 = fields.resumeBase64.replace(/^data:[^;]+;base64,/, '')
+  const attachments = cleanedBase64
+    ? [
+        {
+          filename: fields.resumeName || 'resume.pdf',
+          content: cleanedBase64,
+          contentType: fields.resumeType || 'application/octet-stream',
+        },
+      ]
+    : []
+
+  const resend = new Resend(apiKey)
+  const result = await resend.emails.send({
+    from: process.env.CAREERS_FROM_EMAIL || 'CadenceY Careers <careers@cadencey.io>',
+    to: [CAREERS_TO],
+    replyTo: fields.email,
+    subject: `Application: ${fields.role} — ${fields.fullName}`,
+    text,
+    html,
+    attachments,
+  })
+
+  if (result.error) {
+    throw new Error(result.error.message)
+  }
+
+  return { id: result.data?.id, via: 'resend' as const }
+}
+
+/** Server-side FormSubmit avoids browser CORS issues on custom domains. */
+async function sendViaFormSubmit(fields: {
+  role: string
+  fullName: string
+  email: string
+  location: string
+  linkedin: string
+  portfolio: string
+  why: string
+  resumeName: string
+  resumeBase64: string
+  resumeType: string
+}) {
+  const form = new FormData()
+  form.append('_subject', `Application: ${fields.role} — ${fields.fullName}`)
+  form.append('_template', 'table')
+  form.append('_captcha', 'false')
+  form.append('_replyto', fields.email)
+  form.append('email', fields.email)
+  form.append('Role', fields.role)
+  form.append('Full name', fields.fullName)
+  form.append('Applicant email', fields.email)
+  form.append('Location', fields.location)
+  form.append('LinkedIn / resume URL', fields.linkedin || '(not provided)')
+  form.append('Portfolio / GitHub', fields.portfolio || '(not provided)')
+  form.append('Why CadenceY', fields.why)
+
+  if (fields.resumeBase64 && fields.resumeName) {
+    const cleaned = fields.resumeBase64.replace(/^data:[^;]+;base64,/, '')
+    const bytes = Buffer.from(cleaned, 'base64')
+    const blob = new Blob([bytes], {
+      type: fields.resumeType || 'application/octet-stream',
+    })
+    form.append('Resume', blob, fields.resumeName)
+  }
+
+  const response = await fetch(`https://formsubmit.co/ajax/${CAREERS_TO}`, {
+    method: 'POST',
+    body: form,
+    headers: { Accept: 'application/json' },
+  })
+
+  const data = (await response.json().catch(() => null)) as
+    | { success?: string | boolean; message?: string }
+    | null
+
+  if (!response.ok) {
+    throw new Error(data?.message || `FormSubmit failed (${response.status})`)
+  }
+
+  return { via: 'formsubmit' as const, message: data?.message }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setCors(res)
+
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
     return res.status(204).end()
   }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' })
-  }
-
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) {
-    return res.status(500).json({
-      ok: false,
-      error: 'Missing RESEND_API_KEY. Add it in Vercel project environment variables.',
-    })
   }
 
   try {
@@ -79,77 +200,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ ok: false, error: 'Missing required fields.' })
     }
 
-    const text = [
-      `Role: ${role}`,
-      `Name: ${fullName}`,
-      `Email: ${email}`,
-      `Location: ${location}`,
-      `LinkedIn / resume URL: ${linkedin || '(not provided)'}`,
-      `Portfolio / GitHub: ${portfolio || '(not provided)'}`,
-      `Resume file: ${resumeName || '(not attached)'}`,
-      '',
-      'Why CadenceY:',
+    if (!resumeBase64 || !resumeName) {
+      return res.status(400).json({ ok: false, error: 'Resume file is required.' })
+    }
+
+    const fields = {
+      role,
+      fullName,
+      email,
+      location,
+      linkedin,
+      portfolio,
       why,
-    ].join('\n')
-
-    const html = `
-      <h2>New application — ${escapeHtml(role)}</h2>
-      <table style="border-collapse:collapse;font-family:sans-serif;font-size:14px">
-        <tr><td style="padding:6px 12px 6px 0"><strong>Name</strong></td><td>${escapeHtml(fullName)}</td></tr>
-        <tr><td style="padding:6px 12px 6px 0"><strong>Email</strong></td><td>${escapeHtml(email)}</td></tr>
-        <tr><td style="padding:6px 12px 6px 0"><strong>Location</strong></td><td>${escapeHtml(location)}</td></tr>
-        <tr><td style="padding:6px 12px 6px 0"><strong>LinkedIn / resume URL</strong></td><td>${escapeHtml(linkedin || '(not provided)')}</td></tr>
-        <tr><td style="padding:6px 12px 6px 0"><strong>Portfolio / GitHub</strong></td><td>${escapeHtml(portfolio || '(not provided)')}</td></tr>
-        <tr><td style="padding:6px 12px 6px 0"><strong>Resume file</strong></td><td>${escapeHtml(resumeName || '(not attached)')}</td></tr>
-      </table>
-      <h3 style="margin-top:20px">Why CadenceY</h3>
-      <p style="white-space:pre-wrap;font-family:sans-serif;font-size:14px">${escapeHtml(why)}</p>
-    `
-
-    const from =
-      process.env.CAREERS_FROM_EMAIL || 'CadenceY Careers <careers@cadencey.io>'
-    const to = process.env.CAREERS_TO_EMAIL || 'careers@cadencey.io'
-
-    const cleanedBase64 = resumeBase64.replace(/^data:[^;]+;base64,/, '')
-    const attachments =
-      cleanedBase64 && resumeName
-        ? [
-            {
-              filename: resumeName,
-              // Resend accepts raw base64 string content for attachments
-              content: cleanedBase64,
-              contentType: resumeType || 'application/octet-stream',
-            },
-          ]
-        : []
-
-    if (!attachments.length) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Resume file is required and must be attached.',
-      })
+      resumeName,
+      resumeBase64,
+      resumeType,
     }
 
-    const resend = new Resend(apiKey)
-    const result = await resend.emails.send({
-      from,
-      to: [to],
-      replyTo: email,
-      subject: `Application: ${role} — ${fullName}`,
-      text,
-      html,
-      attachments,
-    })
-
-    if (result.error) {
-      return res.status(502).json({ ok: false, error: result.error.message })
+    try {
+      const resent = await sendViaResend(fields)
+      if (resent) {
+        return res.status(200).json({ ok: true, ...resent })
+      }
+    } catch (resendError) {
+      // Fall through to FormSubmit if Resend is misconfigured for this domain
+      console.error('Resend failed, trying FormSubmit:', resendError)
     }
 
-    return res.status(200).json({
-      ok: true,
-      id: result.data?.id,
-      attached: resumeName,
-    })
+    const submitted = await sendViaFormSubmit(fields)
+    return res.status(200).json({ ok: true, ...submitted })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send application'
     return res.status(500).json({ ok: false, error: message })

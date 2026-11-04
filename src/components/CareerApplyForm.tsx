@@ -20,96 +20,29 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary)
 }
 
-/** Prefer Resend API when configured on Vercel (supports real attachments). */
-async function sendViaResendApi(payload: Record<string, string>): Promise<boolean> {
-  try {
-    const response = await fetch('/api/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-    const data = (await response.json().catch(() => null)) as
-      | { ok?: boolean; error?: string }
-      | null
-
-    if (response.ok && data?.ok) return true
-
-    if (
-      response.status === 404 ||
-      response.status === 500 ||
-      data?.error?.includes('RESEND_API_KEY')
-    ) {
-      return false
-    }
-
-    throw new Error(data?.error || 'Could not send application via API.')
-  } catch (error) {
-    if (error instanceof TypeError) return false
-    throw error
-  }
-}
-
 /**
- * FormSubmit file uploads only work on the non-AJAX endpoint with multipart FormData.
- * The /ajax/ endpoint delivers field text but drops attachments.
+ * Always submit through same-origin /api/apply.
+ * Browser → FormSubmit CORS fails on custom domains ("Failed to fetch");
+ * the API sends via Resend or server-side FormSubmit instead.
  */
-async function sendViaFormSubmit(fields: {
-  role: string
-  fullName: string
-  email: string
-  location: string
-  linkedin: string
-  portfolio: string
-  why: string
-  resumeFile: File | null
-}) {
-  const formData = new FormData()
-  formData.append('_subject', `Application: ${fields.role} — ${fields.fullName}`)
-  formData.append('_template', 'table')
-  formData.append('_captcha', 'false')
-  formData.append('_replyto', fields.email)
-  formData.append('email', fields.email)
-  formData.append('Role', fields.role)
-  formData.append('Full name', fields.fullName)
-  formData.append('Applicant email', fields.email)
-  formData.append('Location', fields.location)
-  formData.append('LinkedIn / resume URL', fields.linkedin || '(not provided)')
-  formData.append('Portfolio / GitHub', fields.portfolio || '(not provided)')
-  formData.append('Why CadenceY', fields.why)
-
-  if (fields.resumeFile) {
-    // FormSubmit attaches any named file input; use a clear filename.
-    formData.append('Resume', fields.resumeFile, fields.resumeFile.name)
-  }
-
-  const response = await fetch(`https://formsubmit.co/${CAREERS_EMAIL}`, {
+async function sendApplication(payload: Record<string, string>) {
+  const response = await fetch('/api/apply', {
     method: 'POST',
-    body: formData,
-    headers: { Accept: 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   })
 
   const data = (await response.json().catch(() => null)) as
-    | { success?: string | boolean; message?: string }
+    | { ok?: boolean; error?: string }
     | null
 
-  const ok =
-    response.ok &&
-    (data == null ||
-      data?.success === true ||
-      data?.success === 'true' ||
-      Boolean(data?.message && /sent|success|deliver/i.test(data.message)))
-
-  if (!response.ok || (data && data.success === false)) {
+  if (!response.ok || !data?.ok) {
     throw new Error(
-      data?.message ||
-        `Could not deliver to ${CAREERS_EMAIL}. Please try again or email us directly.`,
+      data?.error ||
+        (response.status === 404
+          ? 'Application API is not available on this deployment. Redeploy with /api/apply.'
+          : 'Could not send application. Please try again.'),
     )
-  }
-
-  // Some FormSubmit responses are empty HTML/redirects that still succeed (200).
-  if (!ok && response.status >= 400) {
-    throw new Error(`Could not deliver to ${CAREERS_EMAIL}. Please try again.`)
   }
 }
 
@@ -139,7 +72,7 @@ export function CareerApplyForm({ job }: Props) {
         throw new Error('Resume must be under 8 MB.')
       }
 
-      const trimmed = {
+      await sendApplication({
         role: job.title,
         fullName: fullName.trim(),
         email: email.trim(),
@@ -147,27 +80,20 @@ export function CareerApplyForm({ job }: Props) {
         linkedin: linkedin.trim(),
         portfolio: portfolio.trim(),
         why: why.trim(),
-      }
-
-      const apiPayload: Record<string, string> = {
-        ...trimmed,
         resumeName: resumeFile.name,
         resumeType: resumeFile.type || 'application/octet-stream',
         resumeBase64: await fileToBase64(resumeFile),
-      }
-
-      const sentViaApi = await sendViaResendApi(apiPayload)
-
-      if (!sentViaApi) {
-        await sendViaFormSubmit({
-          ...trimmed,
-          resumeFile,
-        })
-      }
+      })
 
       setSubmitted(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send application.')
+      const message =
+        err instanceof TypeError
+          ? 'Network error talking to the server. Open the site on www.cadencey.io (not a redirecting URL) and try again.'
+          : err instanceof Error
+            ? err.message
+            : 'Could not send application.'
+      setError(message)
     } finally {
       setSubmitting(false)
     }
