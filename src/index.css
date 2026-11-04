@@ -3460,29 +3460,10 @@ a.partner-item:hover {
 }
 
 .team-role {
-  margin: 0 0 6px;
+  margin: 0;
   color: var(--cyan);
   font-size: 0.8rem;
   font-weight: 500;
-}
-
-.team-linkedin {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.team-linkedin svg {
-  width: 14px;
-  height: 14px;
-}
-
-.team-linkedin:hover {
-  color: var(--ink);
 }
 
 .team-cta {
