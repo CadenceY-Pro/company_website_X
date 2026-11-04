@@ -171,6 +171,63 @@ async function sendViaSmtp(fields: MailFields) {
   return { via: 'smtp' as const, id: info.messageId }
 }
 
+/**
+ * Server-side FormSubmit (no browser CORS / custom-domain 403).
+ * Works without RESEND_API_KEY or SMTP_PASS once the inbox has been activated.
+ */
+async function sendViaFormSubmit(fields: MailFields) {
+  const cleanedBase64 = fields.resumeBase64.replace(/^data:[^;]+;base64,/, '')
+  const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(CAREERS_TO)}`
+
+  const payload: Record<string, string> = {
+    _subject: `Application: ${fields.role} — ${fields.fullName}`,
+    _replyto: fields.email,
+    _template: 'table',
+    role: fields.role,
+    fullName: fields.fullName,
+    email: fields.email,
+    location: fields.location,
+    linkedin: fields.linkedin || '(not provided)',
+    portfolio: fields.portfolio || '(not provided)',
+    why: fields.why,
+    resumeName: fields.resumeName || '(not attached)',
+  }
+
+  // FormSubmit accepts a data-URI style attachment field for AJAX.
+  if (cleanedBase64) {
+    const mime = fields.resumeType || 'application/octet-stream'
+    payload.attachment = `data:${mime};base64,${cleanedBase64}`
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const raw = await response.text()
+  let data: { success?: string | boolean; message?: string } | null = null
+  try {
+    data = raw ? (JSON.parse(raw) as { success?: string | boolean; message?: string }) : null
+  } catch {
+    data = null
+  }
+
+  if (!response.ok || data?.success === false || data?.success === 'false') {
+    throw new Error(
+      data?.message ||
+        (response.status === 403
+          ? 'FormSubmit blocked the request (activate careers@cadencey.io once via FormSubmit confirmation email).'
+          : `FormSubmit failed (${response.status})`),
+    )
+  }
+
+  return { via: 'formsubmit' as const, id: data?.success?.toString() || 'ok' }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res)
 
@@ -231,10 +288,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       errors.push(`SMTP: ${error instanceof Error ? error.message : 'failed'}`)
     }
 
+    try {
+      const formSubmit = await sendViaFormSubmit(fields)
+      if (formSubmit) return res.status(200).json({ ok: true, ...formSubmit })
+    } catch (error) {
+      errors.push(`FormSubmit: ${error instanceof Error ? error.message : 'failed'}`)
+    }
+
     return res.status(500).json({
       ok: false,
       error:
-        'Email delivery is not configured for Production. In Vercel → Settings → Environment Variables (Production), add RESEND_API_KEY (or SMTP_PASS for careers@cadencey.io on Hostinger), then Redeploy.',
+        'Could not deliver application email. Prefer setting RESEND_API_KEY (or SMTP_PASS) in Vercel Production env, then Redeploy. If using FormSubmit only, confirm careers@cadencey.io once via their activation email.',
       details: errors,
     })
   } catch (error) {
