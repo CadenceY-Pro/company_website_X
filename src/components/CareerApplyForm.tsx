@@ -9,6 +9,19 @@ type Props = {
   job: Job
 }
 
+type ApplyPayload = {
+  role: string
+  fullName: string
+  email: string
+  location: string
+  linkedin: string
+  portfolio: string
+  why: string
+  resumeName: string
+  resumeType: string
+  resumeBase64: string
+}
+
 async function fileToBase64(file: File): Promise<string> {
   const buffer = await file.arrayBuffer()
   const bytes = new Uint8Array(buffer)
@@ -20,32 +33,87 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary)
 }
 
+function buildPlainBody(payload: ApplyPayload) {
+  return [
+    `Role: ${payload.role}`,
+    `Name: ${payload.fullName}`,
+    `Email: ${payload.email}`,
+    `Location: ${payload.location}`,
+    `LinkedIn / resume URL: ${payload.linkedin || '(not provided)'}`,
+    `Portfolio / GitHub: ${payload.portfolio || '(not provided)'}`,
+    `Resume file: ${payload.resumeName}`,
+    '',
+    'Why CadenceY:',
+    payload.why,
+  ].join('\r\n')
+}
+
+/** RFC822 draft with resume attached — opens in the applicant's mail app. */
+function downloadEmlDraft(payload: ApplyPayload) {
+  const boundary = `cadencey_${Date.now().toString(36)}`
+  const subject = `Application: ${payload.role} — ${payload.fullName}`
+  const safeName = payload.resumeName.replace(/[\r\n"]/g, '_')
+  const foldedBase64 = payload.resumeBase64.replace(/(.{76})/g, '$1\r\n')
+
+  const eml = [
+    `From: ${payload.fullName} <${payload.email}>`,
+    `To: ${CAREERS_EMAIL}`,
+    `Reply-To: ${payload.email}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="utf-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    buildPlainBody(payload),
+    '',
+    `--${boundary}`,
+    `Content-Type: ${payload.resumeType || 'application/octet-stream'}; name="${safeName}"`,
+    'Content-Transfer-Encoding: base64',
+    `Content-Disposition: attachment; filename="${safeName}"`,
+    '',
+    foldedBase64,
+    '',
+    `--${boundary}--`,
+    '',
+  ].join('\r\n')
+
+  const blob = new Blob([eml], { type: 'message/rfc822' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `CadenceY-${payload.role.replace(/\s+/g, '-')}-application.eml`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
+
 /**
- * Always submit through same-origin /api/apply.
- * Browser → FormSubmit CORS fails on custom domains ("Failed to fetch");
- * the API sends via Resend or server-side FormSubmit instead.
+ * Prefer same-origin /api/apply (Resend or Hostinger SMTP).
+ * If Production has no mail keys, fall back to an .eml draft the applicant sends.
  */
-async function sendApplication(payload: Record<string, string>) {
-  const response = await fetch('/api/apply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
+async function sendApplication(payload: ApplyPayload): Promise<'api' | 'eml'> {
+  try {
+    const response = await fetch('/api/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
 
-  const data = (await response.json().catch(() => null)) as
-    | { ok?: boolean; error?: string; details?: string[] }
-    | null
+    const data = (await response.json().catch(() => null)) as
+      | { ok?: boolean; error?: string; details?: string[] }
+      | null
 
-  if (!response.ok || !data?.ok) {
-    const detail =
-      data?.details?.length ? ` (${data.details.join('; ')})` : ''
-    throw new Error(
-      (data?.error ||
-        (response.status === 404
-          ? 'Application API is not available on this deployment. Redeploy with /api/apply.'
-          : 'Could not send application. Please try again.')) + detail,
-    )
+    if (response.ok && data?.ok) return 'api'
+  } catch {
+    // Network / CORS — use local draft instead of failing the applicant.
   }
+
+  downloadEmlDraft(payload)
+  return 'eml'
 }
 
 export function CareerApplyForm({ job }: Props) {
@@ -57,7 +125,7 @@ export function CareerApplyForm({ job }: Props) {
   const [why, setWhy] = useState('')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitted, setSubmitted] = useState<'api' | 'eml' | null>(null)
   const [error, setError] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -74,7 +142,7 @@ export function CareerApplyForm({ job }: Props) {
         throw new Error('Resume must be under 8 MB.')
       }
 
-      await sendApplication({
+      const mode = await sendApplication({
         role: job.title,
         fullName: fullName.trim(),
         email: email.trim(),
@@ -87,11 +155,11 @@ export function CareerApplyForm({ job }: Props) {
         resumeBase64: await fileToBase64(resumeFile),
       })
 
-      setSubmitted(true)
+      setSubmitted(mode)
     } catch (err) {
       const message =
         err instanceof TypeError
-          ? 'Network error talking to the server. Open the site on www.cadencey.io (not a redirecting URL) and try again.'
+          ? 'Network error talking to the server. Open the site on www.cadencey.io and try again.'
           : err instanceof Error
             ? err.message
             : 'Could not send application.'
@@ -104,17 +172,25 @@ export function CareerApplyForm({ job }: Props) {
   if (submitted) {
     return (
       <aside className="career-apply">
-        <h2>Application sent</h2>
-        <p>
-          Thanks — your application for {job.title}
-          {resumeFile ? ` (with ${resumeFile.name})` : ''} was sent to{' '}
-          <strong>{CAREERS_EMAIL}</strong>.
-        </p>
+        <h2>{submitted === 'api' ? 'Application sent' : 'Almost done — send the draft'}</h2>
+        {submitted === 'api' ? (
+          <p>
+            Thanks — your application for {job.title}
+            {resumeFile ? ` (with ${resumeFile.name})` : ''} was sent to{' '}
+            <strong>{CAREERS_EMAIL}</strong>.
+          </p>
+        ) : (
+          <p>
+            Your application for {job.title} was downloaded as an email draft (with resume
+            attached). Open that <strong>.eml</strong> file in your mail app and click Send to
+            deliver it to <strong>{CAREERS_EMAIL}</strong>.
+          </p>
+        )}
         <button
           className="btn btn-ghost career-apply-reset"
           type="button"
           onClick={() => {
-            setSubmitted(false)
+            setSubmitted(null)
             setFullName('')
             setEmail('')
             setLocation('')
