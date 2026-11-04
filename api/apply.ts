@@ -88,6 +88,14 @@ type MailFields = {
   resumeType: string
 }
 
+function extractResendTestInbox(message: string): string | null {
+  // e.g. "You can only send testing emails to your own email address (you@gmail.com)."
+  const match = message.match(
+    /only send testing emails to your own email address \(([^)]+)\)/i,
+  )
+  return match?.[1]?.trim() || null
+}
+
 async function sendViaResend(fields: MailFields) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return null
@@ -104,32 +112,53 @@ async function sendViaResend(fields: MailFields) {
       ]
     : []
 
-  // Prefer verified domain from-address; fall back to Resend onboarding sender
-  // so Production keeps working even before DNS sender identity is perfect.
+  // Until cadencey.io is verified in Resend, only onboarding@resend.dev can send.
   const fromCandidates = [
     process.env.CAREERS_FROM_EMAIL,
-    'CadenceY Careers <careers@cadencey.io>',
     'CadenceY Careers <onboarding@resend.dev>',
+    'CadenceY Careers <careers@cadencey.io>',
   ].filter(Boolean) as string[]
+
+  const toCandidates = [
+    CAREERS_TO,
+    process.env.RESEND_FALLBACK_TO || '',
+  ].filter(Boolean)
 
   const resend = new Resend(apiKey)
   let lastError: Error | null = null
 
   for (const from of fromCandidates) {
-    const result = await resend.emails.send({
-      from,
-      to: [CAREERS_TO],
-      replyTo: fields.email,
-      subject: `Application: ${fields.role} — ${fields.fullName}`,
-      text,
-      html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${escapeHtml(text)}</pre>`,
-      attachments,
-    })
+    for (const to of toCandidates) {
+      const result = await resend.emails.send({
+        from,
+        to: [to],
+        replyTo: fields.email,
+        subject:
+          to.toLowerCase() === CAREERS_TO.toLowerCase()
+            ? `Application: ${fields.role} — ${fields.fullName}`
+            : `[Careers → ${CAREERS_TO}] Application: ${fields.role} — ${fields.fullName}`,
+        text:
+          to.toLowerCase() === CAREERS_TO.toLowerCase()
+            ? text
+            : `Deliver to ${CAREERS_TO} (Resend domain not verified yet).\n\n${text}`,
+        html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${escapeHtml(
+          to.toLowerCase() === CAREERS_TO.toLowerCase()
+            ? text
+            : `Deliver to ${CAREERS_TO} (Resend domain not verified yet).\n\n${text}`,
+        )}</pre>`,
+        attachments,
+      })
 
-    if (!result.error) {
-      return { via: 'resend' as const, id: result.data?.id, from }
+      if (!result.error) {
+        return { via: 'resend' as const, id: result.data?.id, from, to }
+      }
+
+      lastError = new Error(result.error.message)
+      const testInbox = extractResendTestInbox(result.error.message)
+      if (testInbox && !toCandidates.includes(testInbox)) {
+        toCandidates.push(testInbox)
+      }
     }
-    lastError = new Error(result.error.message)
   }
 
   throw lastError || new Error('Resend failed')
@@ -217,13 +246,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const errors: string[] = []
 
-    try {
-      const resent = await sendViaResend(fields)
-      if (resent) return res.status(200).json({ ok: true, ...resent })
-    } catch (error) {
-      errors.push(`Resend: ${error instanceof Error ? error.message : 'failed'}`)
-    }
-
+    // Prefer Hostinger SMTP when configured — delivers to careers@ without Resend domain verify.
     try {
       const smtp = await sendViaSmtp(fields)
       if (smtp) return res.status(200).json({ ok: true, ...smtp })
@@ -231,10 +254,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       errors.push(`SMTP: ${error instanceof Error ? error.message : 'failed'}`)
     }
 
+    try {
+      const resent = await sendViaResend(fields)
+      if (resent) return res.status(200).json({ ok: true, ...resent })
+    } catch (error) {
+      errors.push(`Resend: ${error instanceof Error ? error.message : 'failed'}`)
+    }
+
+    const resendDomainHint = errors.some((e) =>
+      /only send testing emails|verify a domain/i.test(e),
+    )
+
     return res.status(503).json({
       ok: false,
-      error:
-        'Direct email is not configured yet. In Vercel → Settings → Environment Variables (Production) set RESEND_API_KEY (from resend.com/api-keys) or SMTP_PASS for careers@cadencey.io, then Redeploy.',
+      error: resendDomainHint
+        ? `Resend cannot email ${CAREERS_TO} until you verify cadencey.io at resend.com/domains (add their DNS records in Hostinger), then set CAREERS_FROM_EMAIL=CadenceY Careers <careers@cadencey.io> and Redeploy. Or set SMTP_PASS (Hostinger mailbox password for careers@cadencey.io) for instant delivery.`
+        : 'Email delivery failed. Set SMTP_PASS (Hostinger careers@ password) or finish Resend domain verification, then Redeploy.',
       details: errors,
     })
   } catch (error) {
