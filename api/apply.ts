@@ -234,7 +234,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({
       ok: false,
       error:
-        'Email delivery is not configured. Add RESEND_API_KEY or SMTP_PASS in Vercel Production env, then Redeploy.',
+        'Direct email is not configured yet. In Vercel → Settings → Environment Variables (Production) set RESEND_API_KEY (from resend.com/api-keys) or SMTP_PASS for careers@cadencey.io, then Redeploy.',
       details: errors,
     })
   } catch (error) {

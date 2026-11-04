@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import type { Job } from '../data/jobs'
 
 const CAREERS_EMAIL = 'careers@cadencey.io'
@@ -8,19 +7,6 @@ const MAX_RESUME_BYTES = 8 * 1024 * 1024
 
 type Props = {
   job: Job
-}
-
-type ApplyPayload = {
-  role: string
-  fullName: string
-  email: string
-  location: string
-  linkedin: string
-  portfolio: string
-  why: string
-  resumeName: string
-  resumeType: string
-  resumeBase64: string
 }
 
 async function fileToBase64(file: File): Promise<string> {
@@ -34,75 +20,33 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary)
 }
 
-async function sendViaApi(payload: ApplyPayload): Promise<boolean> {
-  try {
-    const response = await fetch('/api/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const data = (await response.json().catch(() => null)) as { ok?: boolean } | null
-    return Boolean(response.ok && data?.ok)
-  } catch {
-    return false
-  }
-}
-
 /**
- * Same path as early testing: a real browser form POST to FormSubmit
- * (not fetch/AJAX — that hits CORS/403 on the custom domain).
+ * Direct send via same-origin /api/apply (Resend or Hostinger SMTP).
+ * FormSubmit is no longer used — their origin is failing with Cloudflare 522.
  */
-function sendViaFormSubmit(
-  payload: Omit<ApplyPayload, 'resumeBase64' | 'resumeType'>,
-  resume: File,
-) {
-  const nextUrl = new URL(window.location.href)
-  nextUrl.searchParams.set('applied', '1')
+async function sendApplication(payload: Record<string, string>) {
+  const response = await fetch('/api/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 
-  const form = document.createElement('form')
-  form.method = 'POST'
-  form.action = `https://formsubmit.co/${CAREERS_EMAIL}`
-  form.enctype = 'multipart/form-data'
-  form.acceptCharset = 'UTF-8'
-  form.style.display = 'none'
+  const data = (await response.json().catch(() => null)) as
+    | { ok?: boolean; error?: string; details?: string[] }
+    | null
 
-  const fields: Record<string, string> = {
-    _subject: `Application: ${payload.role} — ${payload.fullName}`,
-    _template: 'table',
-    _captcha: 'false',
-    _next: nextUrl.toString(),
-    _replyto: payload.email,
-    role: payload.role,
-    fullName: payload.fullName,
-    email: payload.email,
-    location: payload.location,
-    linkedin: payload.linkedin || '(not provided)',
-    portfolio: payload.portfolio || '(not provided)',
-    why: payload.why,
+  if (!response.ok || !data?.ok) {
+    const detail = data?.details?.length ? ` (${data.details.join('; ')})` : ''
+    throw new Error(
+      (data?.error ||
+        (response.status === 404
+          ? 'Application API is not available on this deployment. Redeploy with /api/apply.'
+          : 'Could not send application. Please try again.')) + detail,
+    )
   }
-
-  for (const [name, value] of Object.entries(fields)) {
-    const input = document.createElement('input')
-    input.type = 'hidden'
-    input.name = name
-    input.value = value
-    form.appendChild(input)
-  }
-
-  const fileInput = document.createElement('input')
-  fileInput.type = 'file'
-  fileInput.name = 'attachment'
-  const transfer = new DataTransfer()
-  transfer.items.add(resume)
-  fileInput.files = transfer.files
-  form.appendChild(fileInput)
-
-  document.body.appendChild(form)
-  form.submit()
 }
 
 export function CareerApplyForm({ job }: Props) {
-  const [searchParams, setSearchParams] = useSearchParams()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [location, setLocation] = useState('')
@@ -113,15 +57,6 @@ export function CareerApplyForm({ job }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (searchParams.get('applied') === '1') {
-      setSubmitted(true)
-      const next = new URLSearchParams(searchParams)
-      next.delete('applied')
-      setSearchParams(next, { replace: true })
-    }
-  }, [searchParams, setSearchParams])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -137,7 +72,7 @@ export function CareerApplyForm({ job }: Props) {
         throw new Error('Resume must be under 8 MB.')
       }
 
-      const base = {
+      await sendApplication({
         role: job.title,
         fullName: fullName.trim(),
         email: email.trim(),
@@ -146,24 +81,20 @@ export function CareerApplyForm({ job }: Props) {
         portfolio: portfolio.trim(),
         why: why.trim(),
         resumeName: resumeFile.name,
-      }
-
-      // Prefer Vercel API when RESEND_API_KEY / SMTP_PASS is configured.
-      const sentByApi = await sendViaApi({
-        ...base,
         resumeType: resumeFile.type || 'application/octet-stream',
         resumeBase64: await fileToBase64(resumeFile),
       })
 
-      if (sentByApi) {
-        setSubmitted(true)
-        return
-      }
-
-      // Direct send like testing: browser POSTs straight to FormSubmit.
-      sendViaFormSubmit(base, resumeFile)
+      setSubmitted(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send application.')
+      const message =
+        err instanceof TypeError
+          ? 'Network error talking to the server. Open the site on www.cadencey.io and try again.'
+          : err instanceof Error
+            ? err.message
+            : 'Could not send application.'
+      setError(message)
+    } finally {
       setSubmitting(false)
     }
   }
