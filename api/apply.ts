@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import nodemailer from 'nodemailer'
 import { Resend } from 'resend'
 
 export const config = {
@@ -50,9 +51,14 @@ function readBody(req: VercelRequest): Promise<ApplyBody> {
   })
 }
 
-function buildText(fields: Required<Pick<ApplyBody, 'role' | 'fullName' | 'email' | 'location' | 'why'>> & {
+function buildText(fields: {
+  role: string
+  fullName: string
+  email: string
+  location: string
   linkedin: string
   portfolio: string
+  why: string
   resumeName: string
 }) {
   return [
@@ -69,7 +75,7 @@ function buildText(fields: Required<Pick<ApplyBody, 'role' | 'fullName' | 'email
   ].join('\n')
 }
 
-async function sendViaResend(fields: {
+type MailFields = {
   role: string
   fullName: string
   email: string
@@ -80,16 +86,13 @@ async function sendViaResend(fields: {
   resumeName: string
   resumeBase64: string
   resumeType: string
-}) {
+}
+
+async function sendViaResend(fields: MailFields) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return null
 
   const text = buildText(fields)
-  const html = `
-    <h2>New application — ${escapeHtml(fields.role)}</h2>
-    <pre style="font-family:sans-serif;white-space:pre-wrap">${escapeHtml(text)}</pre>
-  `
-
   const cleanedBase64 = fields.resumeBase64.replace(/^data:[^;]+;base64,/, '')
   const attachments = cleanedBase64
     ? [
@@ -101,75 +104,71 @@ async function sendViaResend(fields: {
       ]
     : []
 
-  const resend = new Resend(apiKey)
-  const result = await resend.emails.send({
-    from: process.env.CAREERS_FROM_EMAIL || 'CadenceY Careers <careers@cadencey.io>',
-    to: [CAREERS_TO],
-    replyTo: fields.email,
-    subject: `Application: ${fields.role} — ${fields.fullName}`,
-    text,
-    html,
-    attachments,
-  })
+  // Prefer verified domain from-address; fall back to Resend onboarding sender
+  // so Production keeps working even before DNS sender identity is perfect.
+  const fromCandidates = [
+    process.env.CAREERS_FROM_EMAIL,
+    'CadenceY Careers <careers@cadencey.io>',
+    'CadenceY Careers <onboarding@resend.dev>',
+  ].filter(Boolean) as string[]
 
-  if (result.error) {
-    throw new Error(result.error.message)
+  const resend = new Resend(apiKey)
+  let lastError: Error | null = null
+
+  for (const from of fromCandidates) {
+    const result = await resend.emails.send({
+      from,
+      to: [CAREERS_TO],
+      replyTo: fields.email,
+      subject: `Application: ${fields.role} — ${fields.fullName}`,
+      text,
+      html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${escapeHtml(text)}</pre>`,
+      attachments,
+    })
+
+    if (!result.error) {
+      return { via: 'resend' as const, id: result.data?.id, from }
+    }
+    lastError = new Error(result.error.message)
   }
 
-  return { id: result.data?.id, via: 'resend' as const }
+  throw lastError || new Error('Resend failed')
 }
 
-/** Server-side FormSubmit avoids browser CORS issues on custom domains. */
-async function sendViaFormSubmit(fields: {
-  role: string
-  fullName: string
-  email: string
-  location: string
-  linkedin: string
-  portfolio: string
-  why: string
-  resumeName: string
-  resumeBase64: string
-  resumeType: string
-}) {
-  const form = new FormData()
-  form.append('_subject', `Application: ${fields.role} — ${fields.fullName}`)
-  form.append('_template', 'table')
-  form.append('_captcha', 'false')
-  form.append('_replyto', fields.email)
-  form.append('email', fields.email)
-  form.append('Role', fields.role)
-  form.append('Full name', fields.fullName)
-  form.append('Applicant email', fields.email)
-  form.append('Location', fields.location)
-  form.append('LinkedIn / resume URL', fields.linkedin || '(not provided)')
-  form.append('Portfolio / GitHub', fields.portfolio || '(not provided)')
-  form.append('Why CadenceY', fields.why)
+async function sendViaSmtp(fields: MailFields) {
+  const host = process.env.SMTP_HOST || 'smtp.hostinger.com'
+  const port = Number(process.env.SMTP_PORT || 465)
+  const user = process.env.SMTP_USER || CAREERS_TO
+  const pass = process.env.SMTP_PASS
 
-  if (fields.resumeBase64 && fields.resumeName) {
-    const cleaned = fields.resumeBase64.replace(/^data:[^;]+;base64,/, '')
-    const bytes = Buffer.from(cleaned, 'base64')
-    const blob = new Blob([bytes], {
-      type: fields.resumeType || 'application/octet-stream',
-    })
-    form.append('Resume', blob, fields.resumeName)
-  }
+  if (!pass) return null
 
-  const response = await fetch(`https://formsubmit.co/ajax/${CAREERS_TO}`, {
-    method: 'POST',
-    body: form,
-    headers: { Accept: 'application/json' },
+  const cleanedBase64 = fields.resumeBase64.replace(/^data:[^;]+;base64,/, '')
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
   })
 
-  const data = (await response.json().catch(() => null)) as
-    | { success?: string | boolean; message?: string }
-    | null
+  const info = await transporter.sendMail({
+    from: `CadenceY Careers <${user}>`,
+    to: CAREERS_TO,
+    replyTo: fields.email,
+    subject: `Application: ${fields.role} — ${fields.fullName}`,
+    text: buildText(fields),
+    attachments: cleanedBase64
+      ? [
+          {
+            filename: fields.resumeName || 'resume.pdf',
+            content: Buffer.from(cleanedBase64, 'base64'),
+            contentType: fields.resumeType || 'application/octet-stream',
+          },
+        ]
+      : [],
+  })
 
-  if (!response.ok) {
-    throw new Error(data?.message || `FormSubmit failed (${response.status})`)
-  }
-
-  return { via: 'formsubmit' as const, message: data?.message }
+  return { via: 'smtp' as const, id: info.messageId }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -199,12 +198,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!role || !fullName || !email || !location || !why) {
       return res.status(400).json({ ok: false, error: 'Missing required fields.' })
     }
-
     if (!resumeBase64 || !resumeName) {
       return res.status(400).json({ ok: false, error: 'Resume file is required.' })
     }
 
-    const fields = {
+    const fields: MailFields = {
       role,
       fullName,
       email,
@@ -217,18 +215,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       resumeType,
     }
 
+    const errors: string[] = []
+
     try {
       const resent = await sendViaResend(fields)
-      if (resent) {
-        return res.status(200).json({ ok: true, ...resent })
-      }
-    } catch (resendError) {
-      // Fall through to FormSubmit if Resend is misconfigured for this domain
-      console.error('Resend failed, trying FormSubmit:', resendError)
+      if (resent) return res.status(200).json({ ok: true, ...resent })
+    } catch (error) {
+      errors.push(`Resend: ${error instanceof Error ? error.message : 'failed'}`)
     }
 
-    const submitted = await sendViaFormSubmit(fields)
-    return res.status(200).json({ ok: true, ...submitted })
+    try {
+      const smtp = await sendViaSmtp(fields)
+      if (smtp) return res.status(200).json({ ok: true, ...smtp })
+    } catch (error) {
+      errors.push(`SMTP: ${error instanceof Error ? error.message : 'failed'}`)
+    }
+
+    return res.status(500).json({
+      ok: false,
+      error:
+        'Email delivery is not configured for Production. In Vercel → Settings → Environment Variables (Production), add RESEND_API_KEY (or SMTP_PASS for careers@cadencey.io on Hostinger), then Redeploy.',
+      details: errors,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send application'
     return res.status(500).json({ ok: false, error: message })

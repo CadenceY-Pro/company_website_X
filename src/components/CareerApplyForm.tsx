@@ -33,15 +33,17 @@ async function sendApplication(payload: Record<string, string>) {
   })
 
   const data = (await response.json().catch(() => null)) as
-    | { ok?: boolean; error?: string }
+    | { ok?: boolean; error?: string; details?: string[] }
     | null
 
   if (!response.ok || !data?.ok) {
+    const detail =
+      data?.details?.length ? ` (${data.details.join('; ')})` : ''
     throw new Error(
-      data?.error ||
+      (data?.error ||
         (response.status === 404
           ? 'Application API is not available on this deployment. Redeploy with /api/apply.'
-          : 'Could not send application. Please try again.'),
+          : 'Could not send application. Please try again.')) + detail,
     )
   }
 }
