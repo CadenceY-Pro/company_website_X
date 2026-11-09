@@ -1651,6 +1651,24 @@ a.partner-item:hover {
   max-width: 280px;
 }
 
+.footer-company-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 14px !important;
+  max-width: none !important;
+}
+
+.footer-company-links a {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.footer-company-links a:hover {
+  color: var(--ink);
+}
+
 .footer-cols {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

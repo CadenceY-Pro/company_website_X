@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.cadencey.io/sitemap.xml
+Host: https://www.cadencey.io
