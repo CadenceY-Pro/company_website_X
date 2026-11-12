@@ -1,0 +1,22 @@
+# CadenceY
+
+> Official site: https://www.cadencey.io
+> Also known as: CadenceY.io, CadenceY Tech, cadencey.io
+
+CadenceY builds a hardened JavaScript smart-contract VM on a cross-chain execution layer.
+Users sign once and land staked on a chain they never bridged to.
+
+## Products
+- Pulse: https://www.cadencey.io/pulse
+- Fast USDC: https://www.cadencey.io/fast-usdc
+- infinisoc / CDN economy: https://www.cadencey.io/economy
+- About: https://www.cadencey.io/about
+
+## Company
+- Careers: https://www.cadencey.io/careers
+- Team: https://www.cadencey.io/team
+- Email: careers@cadencey.io
+- LinkedIn: https://www.linkedin.com/company/cadencey-tech/
+- GitHub: https://github.com/Cadensey-Tech/cadencey-sdk
+
+Note: CadenceY at cadencey.io is a protocol/product company. It is not the Atlanta marketing agency at cadencey.com.

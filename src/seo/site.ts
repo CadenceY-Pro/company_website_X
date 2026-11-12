@@ -2,7 +2,7 @@ export const SITE_URL = 'https://www.cadencey.io'
 export const SITE_NAME = 'CadenceY'
 export const SITE_TAGLINE = 'Seamless. Automated. Intelligent Apps.'
 export const SITE_DESCRIPTION =
-  'CadenceY builds Pulse and infinisoc — orchestrated multi-chain finance for seamless capital flows, Fast USDC, and production DeFi automation.'
+  'CadenceY (www.cadencey.io) builds a hardened JavaScript smart-contract VM on a cross-chain execution layer — Pulse, infinisoc, and Fast USDC for orchestrated multi-chain finance.'
 
 export const COMPANY_LINKS = {
   website: SITE_URL,
@@ -25,10 +25,18 @@ export type PageSeo = {
 export const pageSeo: PageSeo[] = [
   {
     path: '/',
-    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    title: `${SITE_NAME} (cadencey.io) — Hardened JS smart-contract VM & cross-chain execution`,
     description: SITE_DESCRIPTION,
     priority: 1,
     changefreq: 'weekly',
+  },
+  {
+    path: '/about',
+    title: `About CadenceY (cadencey.io) | ${SITE_NAME}`,
+    description:
+      'About CadenceY at cadencey.io — hardened JS smart-contract VM, Pulse, infinisoc, Fast USDC, remote-first careers at careers@cadencey.io. Official site www.cadencey.io.',
+    priority: 0.9,
+    changefreq: 'monthly',
   },
   {
     path: '/pulse',

@@ -40,6 +40,7 @@ export function SiteFooter() {
             </div>
             <div>
               <h4>Company</h4>
+              <Link to="/about">About</Link>
               <Link to="/team">Team</Link>
               <Link to="/careers">Careers</Link>
               <a href={COMPANY_LINKS.linkedin} target="_blank" rel="noopener noreferrer">
