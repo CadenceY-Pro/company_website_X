@@ -25,7 +25,7 @@ export type PageSeo = {
 export const pageSeo: PageSeo[] = [
   {
     path: '/',
-    title: `${SITE_NAME} — Hardened JS smart-contract VM & cross-chain execution`,
+    title: SITE_NAME,
     description: SITE_DESCRIPTION,
     priority: 1,
     changefreq: 'weekly',
@@ -149,7 +149,7 @@ export function getPageSeo(pathname: string): PageSeo {
   return (
     pageSeo.find((page) => page.path === normalized) || {
       path: normalized,
-      title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+      title: SITE_NAME,
       description: SITE_DESCRIPTION,
     }
   )
