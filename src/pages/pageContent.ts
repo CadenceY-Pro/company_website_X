@@ -112,7 +112,7 @@ export const pages: PageContent[] = [
     eyebrow: 'Company',
     title: 'About CadenceY',
     lead:
-      'CadenceY (cadencey.io) is building a hardened JavaScript smart-contract VM on a cross-chain execution layer.',
+      'CadenceY is building a hardened JavaScript smart-contract VM on a cross-chain execution layer.',
     body: [
       'Our official website is https://www.cadencey.io. CadenceY — also written CadenceY.io / CadenceY Tech — builds Pulse and infinisoc so users can sign once and land staked on a chain they never bridged to.',
       'We are a remote-first protocol and product company focused on production multi-chain finance: hardened JS smart contracts, cross-chain execution, Fast USDC flows, and custody-preserving DeFi tooling.',

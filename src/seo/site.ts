@@ -25,14 +25,14 @@ export type PageSeo = {
 export const pageSeo: PageSeo[] = [
   {
     path: '/',
-    title: `${SITE_NAME} (cadencey.io) — Hardened JS smart-contract VM & cross-chain execution`,
+    title: `${SITE_NAME} — Hardened JS smart-contract VM & cross-chain execution`,
     description: SITE_DESCRIPTION,
     priority: 1,
     changefreq: 'weekly',
   },
   {
     path: '/about',
-    title: `About CadenceY (cadencey.io) | ${SITE_NAME}`,
+    title: `About CadenceY | ${SITE_NAME}`,
     description:
       'About CadenceY at cadencey.io — hardened JS smart-contract VM, Pulse, infinisoc, Fast USDC, remote-first careers at careers@cadencey.io. Official site www.cadencey.io.',
     priority: 0.9,

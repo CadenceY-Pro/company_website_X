@@ -378,7 +378,6 @@ export const jobs: Job[] = [
     type: 'Full-time or Part-time (10–15+ hrs/week)',
     salaryFullTime: '$8k – $12k / month',
     salaryPartTime: '$50 – $80 / hr',
-    filled: true,
     tags: ['Partnerships', 'Cosmos', 'DeFi', 'Fast USDC'],
     about:
       'Grow the partner surface for infinisoc and Fast USDC. You sell an ambitious stack, source liquidity, and bring integrator requirements back into product.',
@@ -433,7 +432,6 @@ export const jobs: Job[] = [
     type: 'Full-time or Part-time (10–15+ hrs/week)',
     salaryFullTime: '$8k – $14k / month',
     salaryPartTime: '$50 – $90 / hr',
-    filled: true,
     tags: ['Audits', 'ocap', 'Cosmos', 'Cross-chain'],
     about:
       'Independent security review of contracts and messaging that control remote accounts. Produce findings, verify remediation, and stay independent from the implementation team.',
