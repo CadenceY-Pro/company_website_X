@@ -76,13 +76,6 @@ export function MegaNav() {
               Resources <Caret />
             </button>
             <NavLink
-              to="/about"
-              className={({ isActive }) => (isActive && !open ? 'active' : undefined)}
-              onClick={() => setOpen(null)}
-            >
-              About
-            </NavLink>
-            <NavLink
               to="/team"
               className={({ isActive }) => (isActive && !open ? 'active' : undefined)}
               onClick={() => setOpen(null)}
@@ -267,10 +260,7 @@ export function MegaNav() {
           </Link>
         </div>
         <div className="mobile-group">
-          <strong>Company</strong>
-          <Link to="/about" onClick={() => setMobileOpen(false)}>
-            About CadenceY
-          </Link>
+          <strong>Team</strong>
           <Link to="/team" onClick={() => setMobileOpen(false)}>
             Team
           </Link>

@@ -31,14 +31,6 @@ export const pageSeo: PageSeo[] = [
     changefreq: 'weekly',
   },
   {
-    path: '/about',
-    title: `About CadenceY | ${SITE_NAME}`,
-    description:
-      'About CadenceY at cadencey.io — hardened JS smart-contract VM, Pulse, infinisoc, Fast USDC, remote-first careers at careers@cadencey.io. Official site www.cadencey.io.',
-    priority: 0.9,
-    changefreq: 'monthly',
-  },
-  {
     path: '/pulse',
     title: `Pulse — Cross-chain DeFi command center | ${SITE_NAME}`,
     description:

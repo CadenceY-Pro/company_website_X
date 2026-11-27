@@ -10,8 +10,6 @@ Users sign once and land staked on a chain they never bridged to.
 - Pulse: https://www.cadencey.io/pulse
 - Fast USDC: https://www.cadencey.io/fast-usdc
 - infinisoc / CDN economy: https://www.cadencey.io/economy
-- About: https://www.cadencey.io/about
-
 ## Company
 - Careers: https://www.cadencey.io/careers
 - Team: https://www.cadencey.io/team
